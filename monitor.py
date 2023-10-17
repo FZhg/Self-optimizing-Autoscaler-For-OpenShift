@@ -2,13 +2,14 @@ import logging
 
 
 class Monitor:
-    def __int__(self, knowledge_store, sd_client, sysdig_filter, look_back_duration):
+    def __init__(self, knowledge_store, sd_client, sysdig_filter, look_back_duration, metric_sampling):
         self.knowledgeStore = knowledge_store
         self.sd_client = sd_client
         self.sysdig_filter = sysdig_filter
         self.look_back_duration = look_back_duration
+        self.metric_sampling = metric_sampling
 
-    def pull_metrics(self, look_back_duration):
+    def _pull_metrics(self, look_back_duration):
         metrics = [
             {"id": "kube_pod_name"},
             {"id": "sysdig_container_cpu_cores_used",
@@ -47,21 +48,27 @@ class Monitor:
              }
              },
         ]
-        sampling = look_back_duration
         start_time = 0 - look_back_duration
         return self.sd_client.get_data(metrics=metrics,  # List of metrics to query
                                        start_ts=start_time,  # Start of query span is 600 seconds ago
                                        end_ts=0,  # End the query span now
-                                       sampling_s=sampling,  # 1 data point per minute
+                                       sampling_s=self.metric_sampling,  # 1 data point per minute
                                        filter=self.sysdig_filter,  # The filter specifying the target host
                                        datasource_type='container')  # The source for our metrics is the container
 
-    def preprocess(self, response):
+    def _preprocess(self, response):
+        return ""
+
+    def _write_to_knowledge_base(self, knowledge):
         pass
 
     def update_knowledge(self):
-        ok, response = self.pull_metrics(self.look_back_duration)
+        ok, response = self._pull_metrics(self.look_back_duration)
         if not ok:
             logging.debug(response)
             logging.error("Failed to get metrics from SysDig.")
-        logging.info(response)
+        logging.DEBUG(response)
+        knowledge = self._preprocess(response)
+        self._write_to_knowledge_base(knowledge)
+
+
