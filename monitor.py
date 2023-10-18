@@ -105,7 +105,8 @@ class Monitor:
 
     def get_knowledge(self, df):
         """
-        time_stamp
+        start_time_stamp
+        end_time_stamp,
         service_name,
         pods_number,
         min_cpu_quota_percentage_across_pods,
@@ -116,9 +117,10 @@ class Monitor:
         max_memory_quota_percentage_across_pods,
         min_memory_used_bytes_across_pods,
         max_memory_used_bytes_across_pods,
-        success_rate,
         min_jvm_heap_used_percentage_across_pods,
         min_jvm_heap_used_bytes,
+        success_rate,
+        latency
         """
         column_names = [
             "start_time_stamp",
