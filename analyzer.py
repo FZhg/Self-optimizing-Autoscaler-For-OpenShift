@@ -4,6 +4,7 @@ class Analyzer:
         self.plan_pool = plan_pool
         self.services_analyzed = services_analyzed
         self.weights = []
+        self.utility_score = {}
 
 
     def analyze(self):
@@ -44,6 +45,7 @@ class Analyzer:
 
     # prediction and grid search
     def predict_for_option(self):
+        # get the success_rate_expected, latency_expected somehow
         # call utility function
         self.get_utility(cpu_quota, memeory_quota, success_rate_expected, latency_expected)
 
@@ -68,5 +70,28 @@ class Analyzer:
         :param step_jvm_heap_bytes_used:
         :return: A set of options with utility
         '''
-        # call the predict_for_option
-        pass
+        # picking new set of options: cpu, memory, and pods
+        if step_cpu_cores == 1:       
+            current_cpu_cores_quota *= 2
+        elif step_cpu_cores == -1:    
+            current_cpu_cores_quota /= 2
+        if step_memory_bytes == 1:    
+            current_memory_bytes_quota *= 2
+        elif step_memory_bytes == -1: 
+            current_memory_bytes_quota /= 2
+        if step_pod_nums == 1:        
+            current_pod_nums += 1
+        elif step_pod_nums == -1:
+            current_pod_nums -= 1
+
+        # return the results if it is cached
+        current_status = "cpu-{}_mem-{}_pod-{}".format(
+                                   current_cpu_cores_quota, 
+                                   current_memory_bytes_quota, 
+                                   current_pod_nums)
+        if current_status in self.utility_score.keys():
+            return self.utility_score[current_status]
+        else:
+            # call the predict_for_option
+            pass
+
