@@ -3,10 +3,12 @@ class Analyzer:
         self.knowledge_base = knowledge_base
         self.plan_pool = plan_pool
         self.services_analyzed = services_analyzed
-        self.utility_score = {}
         self.cost_weight = 0.4
         self.success_rate_weight = 0.5
         self.latency_weight = 0.1
+        self.utility_score = {}
+        self.mem_quo_lower_cap = 512
+        self.jvm_heap_quo_lower_cap = 512
 
     def analyze(self):
         knowledge = self.knowledge_base.get_current_knowledge()
@@ -163,11 +165,28 @@ class Analyzer:
         utility += self.latency_weight * self.get_latency_utility_preference(latency_expected)
         return utility
 
+
+    def get_success_rate_expected(self, cpu_quota, memory_quota):
+        empirical_func = 0.99*
+        if cpu_quota < 0.25 or memory_quota < 512:
+            return 0.98
+        elif cpu_quota > 3 and memory_quota > 4096:
+            return 1
+        else:
+
+
+    def get_latency_expected(self):
+        pass
     # prediction and grid search
     def predict_for_option(self):
-        # get the success_rate_expected, latency_expected somehow
+        # get the success_rate_expected, latency_expected with our empirical rules
+        success_rate_expected = get_success_rate_expected(cpu_quota, memory_quota)
+        latency_expected = get_latency_expected(cpu_quota, memory_quota)
+
         # call utility function
-        self.get_utility(cpu_quota, memeory_quota, success_rate_expected, latency_expected, pod_num)
+        return self.get_utility(cpu_quota, memory_quota, 
+                success_rate_expected, latency_expected, pod_num)
+
 
     def analyze_options(self,
                         current_cpu_cores_quota,
@@ -199,7 +218,7 @@ class Analyzer:
             current_cpu_cores_quota -= 0.25*step_cpu_cores
         if step_memory_bytes == 1:    
             current_memory_bytes_quota *= 2
-        elif step_memory_bytes == -1: 
+        elif step_memory_bytes == -1 and current_memory_bytes_quota > self.mem_quo_lower_cap: 
             current_memory_bytes_quota /= 2
         if step_pod_nums == 1:        
             current_pod_nums += 1
@@ -207,7 +226,7 @@ class Analyzer:
             current_pod_nums -= 1
         if step_jvm_heap_bytes == 1:
             current_jvm_heap_bytes_quota *= 2
-        elif step_jvm_heap_bytes == -1:
+        elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quo_lower_cap:
             current_jvm_heap_bytes_quota /= 2
 
         # dealing with memory quota conflict
