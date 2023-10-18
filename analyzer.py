@@ -167,21 +167,45 @@ class Analyzer:
 
 
     def get_success_rate_expected(self, cpu_quota, memory_quota):
-        empirical_func = 0.99*
-        if cpu_quota < 0.25 or memory_quota < 512:
-            return 0.98
-        elif cpu_quota > 3 and memory_quota > 4096:
-            return 1
+        threshold_1 = 0.99
+        threshold_2 = 1.0
+        cpu_lower_bound = 0.25
+        cpu_upper_bound = 3
+        mem_lower_bound = 512
+        mem_upper_bound = 4096
+        def empirical_func_cpu(quota):
+            return threshold_1+((threshold_2-threshold_1)/(cpu_upper_bound-cpu_lower_bound))*(quota-cpu_lower_bound)
+        def empirical_func_memory(quota):
+            return threshold_1+((threshold_2-threshold_1)/(mem_upper_bound-mem_lower_bound))*(quota-mem_lower_bound)
+        if cpu_quota < cpu_lower_bound or memory_quota < mem_lower_bound:
+            return threshold_1
+        elif cpu_quota > cpu_upper_bound and memory_quota > mem_upper_bound:
+            return threshold_2
         else:
+            return (empirical_func_cpu(cpu_quota)+empirical_func_memory(memory_quota))/2
 
-
-    def get_latency_expected(self):
-        pass
+    def get_latency_expected(self, cpu_quota, memory_quota):
+        threshold_1 = 300
+        threshold_2 = 100
+        cpu_lower_bound = 0.25
+        cpu_upper_bound = 3
+        mem_lower_bound = 512
+        mem_upper_bound = 4096
+        def empirical_func_cpu(quota):
+            return threshold_2-((threshold_1-threshold_2)/(cpu_upper_bound-cpu_lower_bound))*(quota-cpu_lower_bound)
+        def empirical_func_memory(quota):
+            return threshold_2-((threshold_1-threshold_2)/(mem_upper_bound-mem_lower_bound))*(quota-mem_lower_bound)
+        if cpu_quota < cpu_lower_bound or memory_quota < mem_lower_bound:
+            return threshold_1
+        elif cpu_quota > cpu_upper_bound and memory_quota > mem_upper_bound:
+            return threshold_2
+        else:
+            return (empirical_func_cpu(cpu_quota)+empirical_func_memory(memory_quota))/2
     # prediction and grid search
-    def predict_for_option(self):
+    def predict_for_option(self, cpu_quota, memory_quota):
         # get the success_rate_expected, latency_expected with our empirical rules
-        success_rate_expected = get_success_rate_expected(cpu_quota, memory_quota)
-        latency_expected = get_latency_expected(cpu_quota, memory_quota)
+        success_rate_expected = self.get_success_rate_expected(cpu_quota, memory_quota)
+        latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
 
         # call utility function
         return self.get_utility(cpu_quota, memory_quota, 
