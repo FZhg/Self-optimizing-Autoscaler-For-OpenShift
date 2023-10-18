@@ -3,11 +3,15 @@ import logging
 import schedule
 from sdcclient import IbmAuthHelper, SdMonitorClient
 from monitor import Monitor
+from knowledge_base import KnowledgeBase
+from analyzer import Analyzer
+from planner import Planner
 
 
-def job(monitor):
+def job(monitor, analyzer):
     logging.info("Start Event loop")
     monitor.update_knowledge()
+    analyzer.analyze()
 
 
 def main():
@@ -25,23 +29,29 @@ def main():
     # initialize sys-dig client
     ibm_headers = IbmAuthHelper.get_headers(metrics_url, metrics_api_key, metrics_guid)
     sd_client = SdMonitorClient(sdc_url=metrics_url, custom_headers=ibm_headers)
-    services_monitored = [
+    services_names = [
         "acmeair-authservice",
         "acmeair-bookingservice",
         "acmeair-customerservice",
         "acmeair-flightservice",
         "acmeair-mainservice"
     ]
-    monitor = Monitor("", sd_client, metrics_filter, look_back_duration, metric_sampling, services_monitored)
+    knowledge_base = KnowledgeBase('knowledge.csv')
+    monitor = Monitor(knowledge_base, sd_client, metrics_filter, look_back_duration, metric_sampling,
+                      services_names)
+    planner = Planner()
+    analyzer = Analyzer(knowledge_base, planner, services_names)
+
     # The loop will execute every <loop_duration> seconds
     schedule.every(loop_duration).seconds.do(
         job,
-        monitor=monitor
+        monitor=monitor,
+        analyzer=analyzer
     )
 
     # while True:
     #     schedule.run_pending()
-    job(monitor)
+    job(monitor, analyzer)
 
 
 if __name__ == '__main__':
