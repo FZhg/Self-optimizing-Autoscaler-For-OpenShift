@@ -6,7 +6,7 @@ import pandas as pd
 class Monitor:
     def __init__(self, knowledge_store, sd_client, sysdig_filter, look_back_duration, metric_sampling,
                  services_monitored):
-        self.knowledgeStore = knowledge_store
+        self.knowledge_store = knowledge_store
         self.sd_client = sd_client
         self.sysdig_filter = sysdig_filter
         self.look_back_duration = look_back_duration
@@ -121,7 +121,8 @@ class Monitor:
         min_jvm_heap_used_bytes,
         """
         column_names = [
-            "time_stamp",
+            "start_time_stamp",
+            "end_time_stamp",
             "service_name",
             "pods_number",
             "min_cpu_quota_percentage_across_pods",
@@ -132,30 +133,67 @@ class Monitor:
             "max_memory_quota_percentage_across_pods",
             "min_memory_used_bytes_across_pods",
             "max_memory_used_bytes_across_pods",
-            "success_rate",
             "min_jvm_heap_used_percentage_across_pods",
-            "min_jvm_heap_used_bytes"
+            "min_jvm_heap_used_bytes",
+            "success_rate",
+            "latency"
         ]
         rows = []
         for service_name in self.services_monitored:
             service_df = df[df['pod_name'].str.startswith(service_name)]
-            time_stamp = service_df['time_stamp'].max()
+            start_time_stamp = service_df['time_stamp'].min()
+            end_time_stamp = service_df['time_stamp'].max()
+            time_average_service_df = service_df.groupby('pod_name').mean()
             pods_num = service_df['pod_name'].nunique(dropna=True)
-            min_cpu_quota_percentage_across_pods = service_df['sysdig_container_cpu_quota_used_percent'].min()
-            max_cpu_quota_percentage_across_pods = service_df['sysdig_container_cpu_quota_used_percent'].max()
-            # min_cpu_cores_used_across_pods,
-            # max_cpu_cores_used_across_pods,
-            # min_memory_quota_percentage_across_pods,
-            # max_memory_quota_percentage_across_pods,
-            # min_memory_used_bytes_across_pods,
-            # max_memory_used_bytes_across_pods,
-            # success_rate,
-            # min_jvm_heap_used_percentage_across_pods,
-            # min_jvm_heap_used_bytes,
-        return ""
+            min_cpu_quota_percentage_across_pods = (
+                time_average_service_df['sysdig_container_cpu_quota_used_percent'].min())
+            max_cpu_quota_percentage_across_pods = \
+                time_average_service_df['sysdig_container_cpu_quota_used_percent'].max()
+            min_cpu_cores_used_across_pods = time_average_service_df['sysdig_container_cpu_cores_used'].min()
+            max_cpu_cores_used_across_pods = time_average_service_df['sysdig_container_cpu_cores_used'].max()
+            min_memory_quota_percentage_across_pods = (
+                time_average_service_df['sysdig_container_memory_limit_used_percent'].min())
+            max_memory_quota_percentage_across_pods = (
+                time_average_service_df['sysdig_container_memory_limit_used_percent'].max())
+            min_memory_used_bytes_across_pods = (
+                time_average_service_df['sysdig_container_memory_used_bytes'].min())
+            max_memory_used_bytes_across_pods = (
+                time_average_service_df['sysdig_container_memory_used_bytes'].max())
+            min_jvm_heap_used_percentage_across_pods = (
+                time_average_service_df['jmx_jvm_heap_used_percent'].min())
+            min_jvm_heap_used_bytes = (
+                time_average_service_df['jmx_jvm_heap_used'].min())
+            total_request_count = service_df['sysdig_container_net_request_count'].sum()
+            total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
+            if total_request_count == 0:
+                success_rate = 0
+            else:
+                success_rate = 1 - (total_error_count / total_request_count)
+            latency = service_df['sysdig_container_net_request_time'].max()
+            row = [
+                start_time_stamp,
+                end_time_stamp,
+                service_name,
+                pods_num,
+                min_cpu_quota_percentage_across_pods,
+                max_cpu_quota_percentage_across_pods,
+                min_cpu_cores_used_across_pods,
+                max_cpu_cores_used_across_pods,
+                min_memory_quota_percentage_across_pods,
+                max_memory_quota_percentage_across_pods,
+                min_memory_used_bytes_across_pods,
+                max_memory_used_bytes_across_pods,
+                min_jvm_heap_used_percentage_across_pods,
+                min_jvm_heap_used_bytes,
+                success_rate,
+                latency
+            ]
+            rows.append(row)
+
+        return pd.DataFrame(rows, columns=column_names)
 
     def _write_to_knowledge_base(self, knowledge):
-        pass
+        self.knowledge_store.write_knowledge(knowledge)
 
     def update_knowledge(self):
         ok, pod_metrics_response = self._pull_metrics_pod(self.look_back_duration)
@@ -163,6 +201,7 @@ class Monitor:
             logging.debug(pod_metrics_response)
             logging.error("Failed to get metrics from SysDig.")
             return False
-        logging.debug(pod_metrics_response)
+        logging.debug("Metrics Pulled: " + str(pod_metrics_response))
         knowledge = self._preprocess(pod_metrics_response)
         self._write_to_knowledge_base(knowledge)
+
