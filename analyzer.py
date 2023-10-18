@@ -71,10 +71,10 @@ class Analyzer:
         :return: A set of options with utility
         '''
         # picking new set of options: cpu, memory, and pods
-        if step_cpu_cores == 1:       
-            current_cpu_cores_quota *= 2
-        elif step_cpu_cores == -1:    
-            current_cpu_cores_quota /= 2
+        if step_cpu_cores > 0:       
+            current_cpu_cores_quota += 0.25*step_cpu_cores
+        elif step_cpu_cores < 0:    
+            current_cpu_cores_quota -= 0.25*step_cpu_cores
         if step_memory_bytes == 1:    
             current_memory_bytes_quota *= 2
         elif step_memory_bytes == -1: 
@@ -83,6 +83,21 @@ class Analyzer:
             current_pod_nums += 1
         elif step_pod_nums == -1:
             current_pod_nums -= 1
+        if step_jvm_heap_bytes == 1:
+            current_jvm_heap_bytes_quota *= 2
+        elif step_jvm_heap_bytes == -1:
+            current_jvm_heap_bytes_quota /= 2
+
+        # dealing with memory quota conflict
+        if current_jvm_heap_bytes_quota > current_memory_bytes_quota:
+            # whoever is not updating will follow the updates
+            if step_memory_bytes == 0:
+                current_memory_bytes_quota = current_jvm_heap_bytes_quota
+            elif step_jvm_heap_bytes == 0:
+                current_jvm_heap_bytes_quota = current_memory_bytes_quota
+            # else we allocate more resources
+            else:
+                current_memory_bytes_quota = current_jvm_heap_bytes_quota
 
         # return the results if it is cached
         current_status = "cpu-{}_mem-{}_pod-{}".format(
