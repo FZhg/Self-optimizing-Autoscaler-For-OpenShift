@@ -110,18 +110,54 @@ class Analyzer:
             return False
         return True
 
-    def get_cost_utility_preference(self, cpu_cores_used, memory_bytes_used):
-        return 0.1
+    @staticmethod
+    def get_cost_utility_preference(cpu_cores_used, memory_bytes_used):
+        memory_Gb_used = Analyzer.convert_bytes_to_Gb(memory_bytes_used)
+        cost_per_month = cpu_cores_used * 12 + memory_Gb_used * 5
+        if cost_per_month <= 10:
+            return 1.0
+        elif cost_per_month <= 20:
+            return 0.9
+        elif cost_per_month <= 30:
+            return 0.7
+        else:
+            return 0.1
 
-    def get_success_rate_utility_preference(self, success_rate):
-        return 0.1
+    @staticmethod
+    def convert_bytes_to_Gb(memory_bytes):
+        return 1
 
-    def get_latency_utility_preference(self, latency):
-        return 0.1
+    @staticmethod
+    def get_success_rate_utility_preference(success_rate):
+        if success_rate > 99.9:
+            return 1
+        elif success_rate > 99.5:
+            return 0.8
+        elif success_rate > 99:
+            return 0.5
+        else:
+            return 0
 
-    def get_utility(self, cpu_quota, memory_quota, success_rate_expected, latency_expected):
+    @staticmethod
+    def get_latency_utility_preference(latency):
+        latency = Analyzer.convert_nano_seconds_to_milli_seconds(latency)
+        if latency < 100:
+            return 1
+        elif latency < 200:
+            return 0.8
+        elif latency < 300:
+            return 0.6
+        else:
+            return 0
+
+    @staticmethod
+    def convert_nano_seconds_to_milli_seconds(nano_seconds):
+        return 1
+
+
+    def get_utility(self, cpu_quota, memory_quota, success_rate_expected, latency_expected, pod_num):
         utility = 0
-        utility += self.cost_weight * self.get_cost_utility_preference(cpu_quota, memory_quota)
+        utility += self.cost_weight * self.get_cost_utility_preference(cpu_quota * pod_num, memory_quota * pod_num)
         utility += self.success_rate_weight * self.get_success_rate_utility_preference(success_rate_expected)
         utility += self.latency_weight * self.get_latency_utility_preference(latency_expected)
         return utility
@@ -129,7 +165,7 @@ class Analyzer:
     # prediction and grid search
     def predict_for_option(self):
         # call utility function
-        self.get_utility(cpu_quota, memeory_quota, success_rate_expected, latency_expected)
+        self.get_utility(cpu_quota, memeory_quota, success_rate_expected, latency_expected, pod_num)
 
     def analyze_options(self,
                         current_cpu_cores_quota,
@@ -139,7 +175,9 @@ class Analyzer:
                         current_pod_nums,
                         step_pod_nums,
                         current_jvm_heap_bytes_quota,
-                        step_jvm_heap_bytes
+                        step_jvm_heap_bytes,
+                        current_success_rate,
+                        current_latency,
                         ):
         '''
         :param current_cpu_cores_quota:
