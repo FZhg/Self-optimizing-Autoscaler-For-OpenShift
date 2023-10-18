@@ -3,9 +3,12 @@ class Analyzer:
         self.knowledge_base = knowledge_base
         self.plan_pool = plan_pool
         self.services_analyzed = services_analyzed
+        self.memory_quota_lower_bound = 512
+        self.jvm_heap_quota_lower_bound = 512
         self.cost_weight = cost_weight
         self.success_rate_weight = success_rate_weight
         self.latency_weight = latency_weight
+
 
     def analyze(self):
         knowledge = self.knowledge_base.get_current_knowledge()
@@ -176,11 +179,53 @@ class Analyzer:
         utility += self.latency_weight * self.get_latency_utility_preference(latency_expected)
         return utility
 
-    # prediction and grid search
-    def predict_for_option(self):
-        pass
+
+    def get_success_rate_expected(self, cpu_quota, memory_quota):
+        threshold_1 = 0.99
+        threshold_2 = 1.0
+        cpu_lower_bound = 0.25
+        cpu_upper_bound = 3
+        mem_lower_bound = 512
+        mem_upper_bound = 4096
+        def empirical_func_cpu(quota):
+            return threshold_1+((threshold_2-threshold_1)/(cpu_upper_bound-cpu_lower_bound))*(quota-cpu_lower_bound)
+        def empirical_func_memory(quota):
+            return threshold_1+((threshold_2-threshold_1)/(mem_upper_bound-mem_lower_bound))*(quota-mem_lower_bound)
+        if cpu_quota < cpu_lower_bound or memory_quota < mem_lower_bound:
+            return threshold_1
+        elif cpu_quota > cpu_upper_bound and memory_quota > mem_upper_bound:
+            return threshold_2
+        else:
+            return (empirical_func_cpu(cpu_quota)+empirical_func_memory(memory_quota))/2
+
+    def get_latency_expected(self, cpu_quota, memory_quota):
+        threshold_1 = 300
+        threshold_2 = 100
+        cpu_lower_bound = 0.25
+        cpu_upper_bound = 3
+        mem_lower_bound = 512
+        mem_upper_bound = 4096
+        def empirical_func_cpu(quota):
+            return threshold_2-((threshold_1-threshold_2)/(cpu_upper_bound-cpu_lower_bound))*(quota-cpu_lower_bound)
+        def empirical_func_memory(quota):
+            return threshold_2-((threshold_1-threshold_2)/(mem_upper_bound-mem_lower_bound))*(quota-mem_lower_bound)
+        if cpu_quota < cpu_lower_bound or memory_quota < mem_lower_bound:
+            return threshold_1
+        elif cpu_quota > cpu_upper_bound and memory_quota > mem_upper_bound:
+            return threshold_2
+        else:
+            return (empirical_func_cpu(cpu_quota)+empirical_func_memory(memory_quota))/2
+    # prediction
+    def predict_for_option(self, cpu_quota, memory_quota, pod_num):
+        # get the success_rate_expected, latency_expected with our empirical rules
+        success_rate_expected = self.get_success_rate_expected(cpu_quota, memory_quota)
+        latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
+
         # call utility function
-        # self.get_utility(cpu_quota, memory_quota, success_rate_expected, latency_expected, pod_num)
+        return self.get_utility(cpu_quota, memory_quota, 
+                success_rate_expected, latency_expected, pod_num)
+
+
 
     def analyze_options(self,
                         current_cpu_cores_quota,
@@ -205,5 +250,32 @@ class Analyzer:
         :param step_jvm_heap_bytes_used:
         :return: A set of options with utility
         '''
-        # call the predict_for_option
-        return []
+        if step_jvm_heap_bytes == 1:
+            current_jvm_heap_bytes_quota *= 2
+        elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quo_lower_cap:
+            current_jvm_heap_bytes_quota /= 2
+
+        # calculate utilities score for all set of options
+        options_and_utilities = []
+        for i in range(abs(step_cpu_cores)+1):
+            for j in range(abs(step_memory_bytes)+1):
+                inloop_cpu_step = i*(step_cpu_cores/abs(step_cpu_cores))
+                inloop_mem_step = j*(step_memory_bytes/abs(step_memory_bytes))                                
+                cpu_quota = current_cpu_cores_quota + 0.25*inloop_cpu_step
+                memory_quota = current_memory_bytes_quota * 2**inloop_mem_step
+                if memory_quota < self.mem_quo_lower_cap: continue
+                if current_jvm_heap_bytes_quota > memory_quota:
+                    memory_quota = current_jvm_heap_bytes_quota
+                options_and_utilities += [
+                                          cpu_quota,
+                                          inloop_cpu_step,
+                                          memory_quota,
+                                          inloop_mem_step,
+                                          current_pod_nums,
+                                          current_jvm_heap_bytes_quota,
+                                          step_jvm_heap_bytes,
+                                          self.predict_for_option( 
+                                                cpu_quota, 
+                                                memory_quota, 
+                                                current_pod_nums),]
+        return options_and_utilities
