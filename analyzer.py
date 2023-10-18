@@ -6,7 +6,6 @@ class Analyzer:
         self.cost_weight = 0.4
         self.success_rate_weight = 0.5
         self.latency_weight = 0.1
-        self.utility_score = {}
         self.mem_quo_lower_cap = 512
         self.jvm_heap_quo_lower_cap = 512
 
@@ -201,8 +200,8 @@ class Analyzer:
             return threshold_2
         else:
             return (empirical_func_cpu(cpu_quota)+empirical_func_memory(memory_quota))/2
-    # prediction and grid search
-    def predict_for_option(self, cpu_quota, memory_quota):
+    # prediction
+    def predict_for_option(self, cpu_quota, memory_quota, pod_num):
         # get the success_rate_expected, latency_expected with our empirical rules
         success_rate_expected = self.get_success_rate_expected(cpu_quota, memory_quota)
         latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
@@ -235,43 +234,32 @@ class Analyzer:
         :param step_jvm_heap_bytes_used:
         :return: A set of options with utility
         '''
-        # picking new set of options: cpu, memory, and pods
-        if step_cpu_cores > 0:       
-            current_cpu_cores_quota += 0.25*step_cpu_cores
-        elif step_cpu_cores < 0:    
-            current_cpu_cores_quota -= 0.25*step_cpu_cores
-        if step_memory_bytes == 1:    
-            current_memory_bytes_quota *= 2
-        elif step_memory_bytes == -1 and current_memory_bytes_quota > self.mem_quo_lower_cap: 
-            current_memory_bytes_quota /= 2
-        if step_pod_nums == 1:        
-            current_pod_nums += 1
-        elif step_pod_nums == -1:
-            current_pod_nums -= 1
         if step_jvm_heap_bytes == 1:
             current_jvm_heap_bytes_quota *= 2
         elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quo_lower_cap:
             current_jvm_heap_bytes_quota /= 2
 
-        # dealing with memory quota conflict
-        if current_jvm_heap_bytes_quota > current_memory_bytes_quota:
-            # whoever is not updating will follow the updates
-            if step_memory_bytes == 0:
-                current_memory_bytes_quota = current_jvm_heap_bytes_quota
-            elif step_jvm_heap_bytes == 0:
-                current_jvm_heap_bytes_quota = current_memory_bytes_quota
-            # else we allocate more resources
-            else:
-                current_memory_bytes_quota = current_jvm_heap_bytes_quota
-
-        # return the results if it is cached
-        current_status = "cpu-{}_mem-{}_pod-{}".format(
-                                   current_cpu_cores_quota, 
-                                   current_memory_bytes_quota, 
-                                   current_pod_nums)
-        if current_status in self.utility_score.keys():
-            return self.utility_score[current_status]
-        else:
-            # call the predict_for_option
-            pass
-
+        # calculate utilities score for all set of options
+        options_and_utilities = []
+        for i in range(abs(step_cpu_cores)+1):
+            for j in range(abs(step_memory_bytes)+1):
+                inloop_cpu_step = i*(step_cpu_cores/abs(step_cpu_cores))
+                inloop_mem_step = j*(step_memory_bytes/abs(step_memory_bytes))                                
+                cpu_quota = current_cpu_cores_quota + 0.25*inloop_cpu_step
+                memory_quota = current_memory_bytes_quota * 2**inloop_mem_step
+                if memory_quota < self.mem_quo_lower_cap: continue
+                if current_jvm_heap_bytes_quota > memory_quota:
+                    memory_quota = current_jvm_heap_bytes_quota
+                options_and_utilities += [
+                                          cpu_quota,
+                                          inloop_cpu_step,
+                                          memory_quota,
+                                          inloop_mem_step,
+                                          current_pod_nums,
+                                          current_jvm_heap_bytes_quota,
+                                          step_jvm_heap_bytes,
+                                          self.predict_for_option( 
+                                                cpu_quota, 
+                                                memory_quota, 
+                                                current_pod_nums),]
+        return options_and_utilities
