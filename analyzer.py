@@ -1,11 +1,11 @@
 class Analyzer:
-    def __init__(self, knowledge_base, plan_pool, services_analyzed):
+    def __init__(self, knowledge_base, plan_pool, services_analyzed, cost_weight, success_rate_weight, latency_weight):
         self.knowledge_base = knowledge_base
         self.plan_pool = plan_pool
         self.services_analyzed = services_analyzed
-        self.cost_weight = 0.4
-        self.success_rate_weight = 0.5
-        self.latency_weight = 0.1
+        self.cost_weight = cost_weight
+        self.success_rate_weight = success_rate_weight
+        self.latency_weight = latency_weight
 
     def analyze(self):
         knowledge = self.knowledge_base.get_current_knowledge()
@@ -32,6 +32,7 @@ class Analyzer:
             jvm_quota = Analyzer.get_memory_quota(min_jvm_heap_used_percentage_across_pods, min_jvm_heap_used_bytes)
             cpu_quota_steps = Analyzer.round_to_nearest_quarter(0.5 * cpu_quota)
             success_rate = service_knowledge.at[0, 'success_rate']
+            latency = service_knowledge.at[0, 'latency']
 
             if min_cpu_cores_used_across_pods >= 90 and max_memory_used_bytes_across_pods <= 40:
                 options = self.analyze_options(
@@ -42,7 +43,10 @@ class Analyzer:
                     pods_number,
                     0,
                     jvm_quota,
-                    0)
+                    0,
+                    success_rate,
+                    latency
+                )
             elif max_cpu_quota_percentage_across_pods < 40 and min_memory_quota_percentage_across_pods >= 80:
                 options = self.analyze_options(
                     cpu_quota,
@@ -52,7 +56,9 @@ class Analyzer:
                     pods_number,
                     0,
                     jvm_quota,
-                    0
+                    0,
+                    success_rate,
+                    latency
                 )
             elif min_cpu_quota_percentage_across_pods >= 90 and min_memory_quota_percentage_across_pods > 80:
                 options = self.analyze_options(
@@ -63,7 +69,9 @@ class Analyzer:
                     pods_number,
                     1,
                     jvm_quota,
-                    0
+                    0,
+                    success_rate,
+                    latency
                 )
             elif max_cpu_quota_percentage_across_pods <= 40 and max_memory_quota_percentage_across_pods <= 40:
                 options = self.analyze_options(
@@ -74,7 +82,9 @@ class Analyzer:
                     pods_number,
                     -1,
                     jvm_quota,
-                    0
+                    0,
+                    success_rate,
+                    latency
                 )
             elif min_jvm_heap_used_percentage_across_pods >= 80:
                 options = self.analyze_options(
@@ -85,8 +95,11 @@ class Analyzer:
                     pods_number,
                     0,
                     jvm_quota,
-                    1
+                    1,
+                    success_rate,
+                    latency
                 )
+
 
     @staticmethod
     def get_cpu_quota(cpu_quota_percentage, cpu_cores_used):
@@ -113,15 +126,17 @@ class Analyzer:
     @staticmethod
     def get_cost_utility_preference(cpu_cores_used, memory_bytes_used):
         memory_Gb_used = Analyzer.convert_bytes_to_Gb(memory_bytes_used)
-        cost_per_month = cpu_cores_used * 12 + memory_Gb_used * 5
+        cost_per_month = cpu_cores_used * 12 + memory_Gb_used * 5 # from IBM Cloud
         if cost_per_month <= 10:
             return 1.0
         elif cost_per_month <= 20:
             return 0.9
         elif cost_per_month <= 30:
             return 0.7
-        else:
+        elif cost_per_month <= 80:
             return 0.1
+        else:
+            return 0
 
     @staticmethod
     def convert_bytes_to_Gb(memory_bytes):
@@ -154,7 +169,6 @@ class Analyzer:
     def convert_nano_seconds_to_milli_seconds(nano_seconds):
         return 1
 
-
     def get_utility(self, cpu_quota, memory_quota, success_rate_expected, latency_expected, pod_num):
         utility = 0
         utility += self.cost_weight * self.get_cost_utility_preference(cpu_quota * pod_num, memory_quota * pod_num)
@@ -164,8 +178,9 @@ class Analyzer:
 
     # prediction and grid search
     def predict_for_option(self):
+        pass
         # call utility function
-        self.get_utility(cpu_quota, memeory_quota, success_rate_expected, latency_expected, pod_num)
+        # self.get_utility(cpu_quota, memory_quota, success_rate_expected, latency_expected, pod_num)
 
     def analyze_options(self,
                         current_cpu_cores_quota,

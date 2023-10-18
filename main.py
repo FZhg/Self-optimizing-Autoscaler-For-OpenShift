@@ -40,7 +40,7 @@ def main():
     monitor = Monitor(knowledge_base, sd_client, metrics_filter, look_back_duration, metric_sampling,
                       services_names)
     planner = Planner()
-    analyzer = Analyzer(knowledge_base, planner, services_names)
+    analyzer = Analyzer(knowledge_base, planner, services_names, cost_weight=0.3, success_rate_weight=0.3, latency_weight=0.4)
 
     # The loop will execute every <loop_duration> seconds
     schedule.every(loop_duration).seconds.do(
