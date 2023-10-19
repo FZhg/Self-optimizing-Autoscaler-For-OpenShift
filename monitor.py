@@ -163,8 +163,12 @@ class Monitor:
                 time_average_service_df['sysdig_container_memory_used_bytes'].max())
             min_jvm_heap_used_percentage_across_pods = (
                 time_average_service_df['jmx_jvm_heap_used_percent'].min())
+            max_jvm_heap_used_percentage_across_pods = (
+                time_average_service_df['jmx_jvm_heap_used_percent'].max())
             min_jvm_heap_used_bytes = (
                 time_average_service_df['jmx_jvm_heap_used'].min())
+            max_jvm_heap_used_bytes = (
+                time_average_service_df['jmx_jvm_heap_used'].max())
             total_request_count = service_df['sysdig_container_net_request_count'].sum()
             total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
             if total_request_count == 0:
@@ -186,7 +190,9 @@ class Monitor:
                 min_memory_used_bytes_across_pods,
                 max_memory_used_bytes_across_pods,
                 min_jvm_heap_used_percentage_across_pods,
+                max_jvm_heap_used_percentage_across_pods,
                 min_jvm_heap_used_bytes,
+                max_jvm_heap_used_bytes,
                 success_rate,
                 latency
             ]
