@@ -228,8 +228,9 @@ class Analyzer:
         latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
 
         # call utility function
-        return self.get_utility(cpu_quota, memory_quota,
-                                success_rate_expected, latency_expected, pod_num)
+        utility_score = self.get_utility(cpu_quota, memory_quota,
+                                         success_rate_expected, latency_expected, pod_num),
+        return utility_score, success_rate_expected, latency_expected
 
     def analyze_options(self,
                         current_cpu_cores_quota,
@@ -246,19 +247,20 @@ class Analyzer:
         '''
         :param current_cpu_cores_quota:
         :param step_cpu_cores:
-        :param current_memory_bytes_used:
+        :param current_memory_bytes_quota:
         :param step_memory_bytes:
         :param current_pod_nums:
         :param step_pod_nums:
-        :param current_jvm_heap_bytes_used:
-        :param step_jvm_heap_bytes_used:
-        :return: A set of options with utility
+        :param current_jvm_heap_bytes_quota:
+        :param step_jvm_heap_bytes:
+        :param current_success_rate:
+        :param current_latency:
+        :return:
         '''
         if step_jvm_heap_bytes == 1:
             current_jvm_heap_bytes_quota *= 2
-        elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quo_lower_cap:
+        elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quota_lower_bound:
             current_jvm_heap_bytes_quota /= 2
-
         # calculate utilities score for all set of options
         options_and_utilities = []
         for i in range(abs(step_cpu_cores) + 1):
@@ -270,6 +272,9 @@ class Analyzer:
                 if memory_quota < self.memory_quota_lower_bound: continue
                 if current_jvm_heap_bytes_quota > memory_quota:
                     memory_quota = current_jvm_heap_bytes_quota
+                utility_score, success_rate_expected, latency_expected = self.predict_for_option(cpu_quota,
+                                                                                                 memory_quota,
+                                                                                                 current_pod_nums),
                 options_and_utilities += [
                     cpu_quota,
                     inloop_cpu_step,
@@ -278,8 +283,8 @@ class Analyzer:
                     current_pod_nums,
                     current_jvm_heap_bytes_quota,
                     step_jvm_heap_bytes,
-                    self.predict_for_option(
-                        cpu_quota,
-                        memory_quota,
-                        current_pod_nums), ]
+                    utility_score,
+                    success_rate_expected,
+                    latency_expected
+                ]
         return options_and_utilities
