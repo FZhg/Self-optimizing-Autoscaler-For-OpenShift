@@ -147,17 +147,17 @@ class Monitor:
             "end_time_stamp",
             "service_name",
             "pods_number",
-            'cpu_quota',
+            'cpu_quota_cores',
             "min_cpu_quota_percentage_across_pods",
             "max_cpu_quota_percentage_across_pods",
             "min_cpu_cores_used_across_pods",
             "max_cpu_cores_used_across_pods",
-            "memory_quota",
+            "memory_quota_mb",
             "min_memory_quota_percentage_across_pods",
             "max_memory_quota_percentage_across_pods",
             "min_memory_used_bytes_across_pods",
             "max_memory_used_bytes_across_pods",
-            "jvm_heap_max",
+            "jvm_heap_max_mb",
             "min_jvm_heap_used_percentage_across_pods",
             "min_jvm_heap_used_bytes",
             "success_rate",
@@ -166,18 +166,21 @@ class Monitor:
         rows = []
         for service_name in self.services_monitored:
             service_df = df[df['pod_name'].str.startswith(service_name)]
+            if not service_df['sysdig_container_count'].any():
+                continue # pass the empty service
             start_time_stamp = service_df['time_stamp'].min()
             end_time_stamp = service_df['time_stamp'].max()
             time_average_service_df = service_df.groupby('pod_name').mean()
             pods_num = service_df['sysdig_container_count'].values[0]
-            cpu_quota = service_df['sysdig_container_cpu_cores_quota_limit'].values[0]
+            cpu_quota_cores = service_df['sysdig_container_cpu_cores_quota_limit'].values[0]
             min_cpu_quota_percentage_across_pods = (
                 time_average_service_df['sysdig_container_cpu_quota_used_percent'].min())
             max_cpu_quota_percentage_across_pods = \
                 time_average_service_df['sysdig_container_cpu_quota_used_percent'].max()
             min_cpu_cores_used_across_pods = time_average_service_df['sysdig_container_cpu_cores_used'].min()
             max_cpu_cores_used_across_pods = time_average_service_df['sysdig_container_cpu_cores_used'].max()
-            memory_quota = service_df['sysdig_container_memory_limit_bytes'].values[0]
+            memory_quota_bytes = service_df['sysdig_container_memory_limit_bytes'].values[0]
+            memory_quota_mb = Monitor._convert_bytes_to_mb(memory_quota_bytes)
             min_memory_quota_percentage_across_pods = (
                 time_average_service_df['sysdig_container_memory_limit_used_percent'].min())
             max_memory_quota_percentage_across_pods = (
@@ -186,7 +189,8 @@ class Monitor:
                 time_average_service_df['sysdig_container_memory_used_bytes'].min())
             max_memory_used_bytes_across_pods = (
                 time_average_service_df['sysdig_container_memory_used_bytes'].max())
-            jvm_heap_max = service_df['jmx_jvm_heap_max'].values[0]
+            jvm_heap_max_bytes = service_df['jmx_jvm_heap_max'].values[0]
+            jvm_heap_max_mb = Monitor._convert_bytes_to_mb(jvm_heap_max_bytes)
             min_jvm_heap_used_percentage_across_pods = (
                 time_average_service_df['jmx_jvm_heap_used_percent'].min())
             min_jvm_heap_used_bytes = (
@@ -203,17 +207,17 @@ class Monitor:
                 end_time_stamp,
                 service_name,
                 pods_num,
-                cpu_quota,
+                cpu_quota_cores,
                 min_cpu_quota_percentage_across_pods,
                 max_cpu_quota_percentage_across_pods,
                 min_cpu_cores_used_across_pods,
                 max_cpu_cores_used_across_pods,
-                memory_quota,
+                memory_quota_mb,
                 min_memory_quota_percentage_across_pods,
                 max_memory_quota_percentage_across_pods,
                 min_memory_used_bytes_across_pods,
                 max_memory_used_bytes_across_pods,
-                jvm_heap_max,
+                jvm_heap_max_mb,
                 min_jvm_heap_used_percentage_across_pods,
                 min_jvm_heap_used_bytes,
                 success_rate,
@@ -222,6 +226,10 @@ class Monitor:
             rows.append(row)
 
         return pd.DataFrame(rows, columns=column_names)
+
+    @staticmethod
+    def _convert_bytes_to_mb(bytes_num):
+        return bytes_num // (1024 * 1024)
 
     def _write_to_knowledge_base(self, knowledge):
         self.knowledge_store.write_knowledge(knowledge)

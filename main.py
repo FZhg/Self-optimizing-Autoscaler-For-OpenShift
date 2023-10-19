@@ -11,7 +11,7 @@ from planner import Planner
 def job(monitor, analyzer):
     logging.info("Start Event loop")
     monitor.update_knowledge()
-    # analyzer.analyze()
+    analyzer.analyze()
 
 
 def main():
