@@ -222,8 +222,9 @@ class Analyzer:
         latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
 
         # call utility function
-        return self.get_utility(cpu_quota, memory_quota, 
-                success_rate_expected, latency_expected, pod_num)
+        utility_score = self.get_utility(cpu_quota, memory_quota, 
+                success_rate_expected, latency_expected, pod_num), 
+        return utility_score, success_rate_expected, latency_expected
 
 
 
@@ -260,12 +261,16 @@ class Analyzer:
         for i in range(abs(step_cpu_cores)+1):
             for j in range(abs(step_memory_bytes)+1):
                 inloop_cpu_step = i*(step_cpu_cores/abs(step_cpu_cores))
-                inloop_mem_step = j*(step_memory_bytes/abs(step_memory_bytes))                                
+                inloop_mem_step = j*(step_memory_bytes/abs(step_memory_bytes))
                 cpu_quota = current_cpu_cores_quota + 0.25*inloop_cpu_step
                 memory_quota = current_memory_bytes_quota * 2**inloop_mem_step
                 if memory_quota < self.mem_quo_lower_cap: continue
                 if current_jvm_heap_bytes_quota > memory_quota:
                     memory_quota = current_jvm_heap_bytes_quota
+                utility_score, success_rate_expected, latency_expected = self.predict_for_option( 
+                                                cpu_quota, 
+                                                memory_quota, 
+                                                current_pod_nums),
                 options_and_utilities += [
                                           cpu_quota,
                                           inloop_cpu_step,
@@ -274,8 +279,8 @@ class Analyzer:
                                           current_pod_nums,
                                           current_jvm_heap_bytes_quota,
                                           step_jvm_heap_bytes,
-                                          self.predict_for_option( 
-                                                cpu_quota, 
-                                                memory_quota, 
-                                                current_pod_nums),]
+                                          utility_score, 
+                                          success_rate_expected, 
+                                          latency_expected
+                                          ]
         return options_and_utilities
