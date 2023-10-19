@@ -11,7 +11,7 @@ from planner import Planner
 def job(monitor, analyzer):
     logging.info("Start Event loop")
     monitor.update_knowledge()
-    analyzer.analyze()
+    # analyzer.analyze()
 
 
 def main():
@@ -49,9 +49,8 @@ def main():
         analyzer=analyzer
     )
 
-    # while True:
-    #     schedule.run_pending()
-    job(monitor, analyzer)
+    while True:
+        schedule.run_pending()
 
 
 if __name__ == '__main__':
