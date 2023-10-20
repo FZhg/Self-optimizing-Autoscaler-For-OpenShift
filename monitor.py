@@ -54,6 +54,11 @@ class Monitor:
                  "time": "sum",
              }
              },
+            {"id": "sysdig_container_net_connection_in_count",
+             "aggregations": {
+                 "time": "avg",
+             }
+             },
             {"id": "sysdig_container_net_http_request_count",
              "aggregations": {
                  "time": "sum",
@@ -140,6 +145,7 @@ class Monitor:
         max_memory_used_bytes_across_pods,
         min_jvm_heap_used_percentage_across_pods,
         min_jvm_heap_used_bytes,
+        queries_per_second,
         success_rate,
         latency
         """
@@ -161,6 +167,7 @@ class Monitor:
             "jvm_heap_max_mb",
             "min_jvm_heap_used_percentage_across_pods",
             "min_jvm_heap_used_bytes",
+            "queries_per_second",
             "success_rate",
             "latency_ms"
         ]
@@ -198,6 +205,7 @@ class Monitor:
                 time_average_service_df['jmx_jvm_heap_used'].min())
             total_request_count = service_df['sysdig_container_net_http_request_count'].sum()
             total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
+            queries_per_second = time_average_service_df['sysdig_container_net_connection_in_count'].max()
             if total_request_count == 0:
                 success_rate = 100
             else:
@@ -222,6 +230,7 @@ class Monitor:
                 jvm_heap_max_mb,
                 min_jvm_heap_used_percentage_across_pods,
                 min_jvm_heap_used_bytes,
+                queries_per_second,
                 success_rate,
                 latency_ms
             ]
