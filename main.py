@@ -8,10 +8,10 @@ from analyzer import Analyzer
 from planner import Planner
 
 
-def job(monitor, analyzer):
-    logging.info("Start Event loop")
+def job(monitor, analyzer, planner):
     monitor.update_knowledge()
-    analyzer.analyze()
+    options = analyzer.analyze()
+    planner.plan(options)
 
 
 def main():
@@ -40,17 +40,24 @@ def main():
     monitor = Monitor(knowledge_base, sd_client, metrics_filter, look_back_duration, metric_sampling,
                       services_names)
     planner = Planner()
-    analyzer = Analyzer(knowledge_base, planner, services_names, cost_weight=0.3, success_rate_weight=0.3, latency_weight=0.4)
+    analyzer = Analyzer(knowledge_base, services_names)
 
     # The loop will execute every <loop_duration> seconds
     schedule.every(loop_duration).seconds.do(
         job,
         monitor=monitor,
-        analyzer=analyzer
+        analyzer=analyzer,
+        planner=planner
     )
 
+    logging.info("The MAPE-K loop Started.")
     while True:
-        schedule.run_pending()
+        try:
+            schedule.run_pending()
+        except KeyboardInterrupt:
+            schedule.clear()
+            logging.info("The MAPE-K loop Stopped.")
+            break
 
 
 if __name__ == '__main__':
