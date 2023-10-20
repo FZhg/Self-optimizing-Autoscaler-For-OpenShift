@@ -1,4 +1,5 @@
 import logging
+import time
 
 import pandas as pd
 import numpy as np
@@ -20,11 +21,11 @@ class Analyzer:
             min_cpu_quota_percentage_across_pods = service_knowledge['min_cpu_quota_percentage_across_pods'].values[0]
             max_cpu_quota_percentage_across_pods = service_knowledge['max_cpu_quota_percentage_across_pods'].values[0]
             min_memory_quota_percentage_across_pods = \
-            service_knowledge['min_memory_quota_percentage_across_pods'].values[0]
+                service_knowledge['min_memory_quota_percentage_across_pods'].values[0]
             max_memory_quota_percentage_across_pods = \
-            service_knowledge['max_memory_quota_percentage_across_pods'].values[0]
+                service_knowledge['max_memory_quota_percentage_across_pods'].values[0]
             min_jvm_heap_used_percentage_across_pods = \
-            service_knowledge['min_jvm_heap_used_percentage_across_pods'].values[0]
+                service_knowledge['min_jvm_heap_used_percentage_across_pods'].values[0]
             cpu_quota_cores = service_knowledge['cpu_quota_cores'].values[0]
             memory_quota_mb = service_knowledge['memory_quota_mb'].values[0]
             jvm_heap_max_mb = service_knowledge['jvm_heap_max_mb'].values[0]
@@ -270,5 +271,7 @@ class Analyzer:
                                expected_monthly_cost,
                                0, 0, 0]
                         rows.append(row)
-
-        return pd.DataFrame(rows, columns=column_names)
+        df = pd.DataFrame(rows, columns=column_names)
+        output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate}_latency_{current_latency_ms}.csv"
+        df.to_csv(output_filename, index=False)
+        return df
