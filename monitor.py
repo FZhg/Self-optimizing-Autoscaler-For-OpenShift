@@ -161,7 +161,7 @@ class Monitor:
             "min_jvm_heap_used_percentage_across_pods",
             "min_jvm_heap_used_bytes",
             "success_rate",
-            "latency"
+            "latency_ms"
         ]
         rows = []
         for service_name in self.services_monitored:
@@ -201,7 +201,8 @@ class Monitor:
                 success_rate = 0
             else:
                 success_rate = (1 - (total_error_count / total_request_count)) * 100
-            latency = service_df['sysdig_container_net_request_time'].max()
+            latency_ns = service_df['sysdig_container_net_request_time'].max()
+            latency_ms = Monitor._convert_ns_to_ms(latency_ns)
             row = [
                 start_time_stamp,
                 end_time_stamp,
@@ -221,12 +222,15 @@ class Monitor:
                 min_jvm_heap_used_percentage_across_pods,
                 min_jvm_heap_used_bytes,
                 success_rate,
-                latency
+                latency_ms
             ]
             rows.append(row)
 
         return pd.DataFrame(rows, columns=column_names)
 
+    @staticmethod
+    def _convert_ns_to_ms(ns_num):
+        return ns_num / 1000000
     @staticmethod
     def _convert_bytes_to_mb(bytes_num):
         return bytes_num // (1024 * 1024)
