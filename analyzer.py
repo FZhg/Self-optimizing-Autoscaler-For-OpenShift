@@ -1,100 +1,87 @@
+import logging
+
+import pandas as pd
+import numpy as np
+
+
 class Analyzer:
-    def __init__(self, knowledge_base, plan_pool, services_analyzed, cost_weight, success_rate_weight, latency_weight):
+    def __init__(self, knowledge_base, services_analyzed):
         self.knowledge_base = knowledge_base
-        self.plan_pool = plan_pool
         self.services_analyzed = services_analyzed
-        self.memory_quota_lower_bound = 512
-        self.jvm_heap_quota_lower_bound = 512
-        self.cost_weight = cost_weight
-        self.success_rate_weight = success_rate_weight
-        self.latency_weight = latency_weight
 
     def analyze(self):
         knowledge = self.knowledge_base.get_current_knowledge()
-        for service_name in self.services_analyzed[:1]:
+        options_for_all_services = []
+        for service_name in self.services_analyzed:
             service_knowledge = knowledge[knowledge['service_name'] == service_name]
             if not Analyzer.is_adaption_required(service_knowledge):
                 continue
-            pods_number = service_knowledge.at[0, 'pods_number']
-            min_cpu_quota_percentage_across_pods = service_knowledge.at[0, 'min_cpu_quota_percentage_across_pods']
-            max_cpu_quota_percentage_across_pods = service_knowledge.at[0, 'max_cpu_quota_percentage_across_pods']
-            min_memory_quota_percentage_across_pods = service_knowledge.at[0, 'min_memory_quota_percentage_across_pods']
-            max_memory_quota_percentage_across_pods = service_knowledge.at[
-                0, 'max_memory_quota_percentage_across_pods ']
-            min_jvm_heap_used_percentage_across_pods = service_knowledge.at[
-                0, 'min_jvm_heap_used_percentage_across_pods']
-            cpu_quota_cores = service_knowledge.at[0, 'cpu_quota_cores']
-            memory_quota_mb = service_knowledge.at[0, 'memory_quota_mb']
-            jvm_heap_max_mb = service_knowledge.at[0, 'jvm_heap_max_mb']
-            success_rate = service_knowledge.at[0, 'success_rate']
-            latency_ms = service_knowledge.at[0, 'latency']
+            pods_number = service_knowledge['pods_number'].values[0]
+            min_cpu_quota_percentage_across_pods = service_knowledge['min_cpu_quota_percentage_across_pods'].values[0]
+            max_cpu_quota_percentage_across_pods = service_knowledge['max_cpu_quota_percentage_across_pods'].values[0]
+            min_memory_quota_percentage_across_pods = \
+            service_knowledge['min_memory_quota_percentage_across_pods'].values[0]
+            max_memory_quota_percentage_across_pods = \
+            service_knowledge['max_memory_quota_percentage_across_pods'].values[0]
+            min_jvm_heap_used_percentage_across_pods = \
+            service_knowledge['min_jvm_heap_used_percentage_across_pods'].values[0]
+            cpu_quota_cores = service_knowledge['cpu_quota_cores'].values[0]
+            memory_quota_mb = service_knowledge['memory_quota_mb'].values[0]
+            jvm_heap_max_mb = service_knowledge['jvm_heap_max_mb'].values[0]
+            success_rate = service_knowledge['success_rate'].values[0]
+            latency_ms = service_knowledge['latency_ms'].values[0]
 
-            if min_cpu_quota_percentage_across_pods >= 90 and max_memory_quota_percentage_across_pods <= 40:
-                options = self.analyze_options(
-                    cpu_quota_cores,
-                    2,
-                    memory_quota_mb,
-                    -1,
-                    pods_number,
-                    0,
-                    jvm_heap_max_mb,
-                    0,
-                    success_rate,
-                    latency_ms
-                )
-            elif max_cpu_quota_percentage_across_pods < 40 and min_memory_quota_percentage_across_pods >= 80:
-                options = self.analyze_options(
-                    cpu_quota_cores,
-                    -2,
-                    memory_quota_mb,
-                    1,
-                    pods_number,
-                    0,
-                    jvm_heap_max_mb,
-                    0,
-                    success_rate,
-                    latency_ms
-                )
-            elif min_cpu_quota_percentage_across_pods >= 90 and min_memory_quota_percentage_across_pods > 80:
-                options = self.analyze_options(
-                    cpu_quota_cores,
-                    0,
-                    memory_quota_mb,
-                    0,
-                    pods_number,
-                    1,
-                    jvm_heap_max_mb,
-                    0,
-                    success_rate,
-                    latency_ms
-                )
-            elif max_cpu_quota_percentage_across_pods <= 40 and max_memory_quota_percentage_across_pods <= 40:
-                options = self.analyze_options(
-                    cpu_quota_cores,
-                    0,
-                    memory_quota_mb,
-                    0,
-                    pods_number,
-                    -1,
-                    jvm_heap_max_mb,
-                    0,
-                    success_rate,
-                    latency_ms
-                )
-            elif min_jvm_heap_used_percentage_across_pods >= 80:
-                options = self.analyze_options(
-                    cpu_quota_cores,
-                    0,
-                    memory_quota_mb,
-                    0,
-                    pods_number,
-                    0,
-                    jvm_heap_max_mb,
-                    1,
-                    success_rate,
-                    latency_ms
-                )
-            return options
+            num_steps_cpu = 0
+            num_steps_memory = 0
+            num_steps_replica = 0
+            num_steps_jvm_heap_max = 0
+
+            if min_jvm_heap_used_percentage_across_pods >= 80:
+                num_steps_jvm_heap_max = 2
+
+            if max_cpu_quota_percentage_across_pods <= 40:
+                num_steps_cpu = - 2
+            elif min_cpu_quota_percentage_across_pods >= 90:
+                num_steps_cpu = 2
+
+            if max_memory_quota_percentage_across_pods <= 40:
+                num_steps_memory = -2
+            elif min_memory_quota_percentage_across_pods >= 80:
+                num_steps_memory = 2
+
+            if min_cpu_quota_percentage_across_pods >= 90 and min_memory_quota_percentage_across_pods >= 80:
+                num_steps_replica = 1
+            elif max_cpu_quota_percentage_across_pods <= 40 and max_memory_quota_percentage_across_pods < 40:
+                num_steps_replica = -1
+            elif success_rate <= 99.5 or latency_ms >= 300:
+                num_steps_replica = 2
+
+            options_cpu_memory_jvm = self.analyze_options(
+                service_name=service_name,
+                current_cpu_cores_quota=cpu_quota_cores,
+                num_steps_cpu=num_steps_cpu,
+                current_memory_quota_mb=memory_quota_mb,
+                num_steps_memory=num_steps_memory,
+                current_replica_nums=pods_number,
+                current_jvm_heap_max_mb=jvm_heap_max_mb,
+                num_steps_jvm_heap_max=num_steps_jvm_heap_max,
+                current_success_rate=success_rate,
+                current_latency_ms=latency_ms
+            )
+
+            options_replica_num = self.analyze_options(
+                service_name=service_name,
+                current_cpu_cores_quota=cpu_quota_cores,
+                current_memory_quota_mb=memory_quota_mb,
+                current_jvm_heap_max_mb=jvm_heap_max_mb,
+                current_replica_nums=pods_number,
+                nums_steps_replica=num_steps_replica
+            )
+            options = pd.concat([options_cpu_memory_jvm, options_replica_num], ignore_index=True)
+            options_for_all_services.append(options)
+        options_for_all_services = pd.concat(options_for_all_services, ignore_index=True)
+        logging.debug("options:\n" + options_for_all_services.to_string())
+        return options_for_all_services
 
     @staticmethod
     def is_adaption_required(service_knowledge):
@@ -105,16 +92,19 @@ class Analyzer:
         return True
 
     @staticmethod
-    def get_cost_utility_preference(cpu_cores_used, memory_mb_used):
-        cost_per_month = cpu_cores_used * 12 + memory_mb_used * 5 / 1024
-        # from IBM Cloud, 1 core cpu cost $12/ month; 1 GB memory cost $5/Month.
-        if cost_per_month <= 10:
+    def get_monthly_cost(replica_num, cpu_cores_used, memory_mb_used):
+        # From IBM Cloud, 1 core cpu cost $12/ month; 1 GB memory cost $5/Month.
+        return (cpu_cores_used * 12 + memory_mb_used * 5 / 1024) * replica_num
+
+    @staticmethod
+    def get_cost_utility_preference(monthly_cost):
+        if monthly_cost <= 10:
             return 1.0
-        elif cost_per_month <= 20:
+        elif monthly_cost <= 20:
             return 0.9
-        elif cost_per_month <= 30:
+        elif monthly_cost <= 30:
             return 0.7
-        elif cost_per_month <= 80:
+        elif monthly_cost <= 80:
             return 0.3
         else:
             return 0
@@ -144,15 +134,21 @@ class Analyzer:
     def convert_nano_seconds_to_milli_seconds(nano_seconds):
         return 1
 
-    def get_utility(self, cpu_quota, memory_quota, success_rate_expected, latency_expected, pod_num):
+    def get_utility(self,
+                    monthly_cost,
+                    success_rate,
+                    latency,
+                    cost_weight=0.3,
+                    success_rate_weight=0.4,
+                    latency_weight=0.5):
         utility = 0
-        utility += self.cost_weight * self.get_cost_utility_preference(cpu_quota * pod_num, memory_quota * pod_num)
-        utility += self.success_rate_weight * self.get_success_rate_utility_preference(success_rate_expected)
-        utility += self.latency_weight * self.get_latency_utility_preference(latency_expected)
+        utility += cost_weight * self.get_cost_utility_preference(monthly_cost)
+        utility += success_rate_weight * self.get_success_rate_utility_preference(success_rate)
+        utility += latency_weight * self.get_latency_utility_preference(latency)
         return utility
 
     @staticmethod
-    def get_success_rate_expected(cpu_quota, memory_quota):
+    def get_success_rate_expected(cpu_quota, memory_quota, replica_num):
         threshold_1 = 0.99
         threshold_2 = 1.0
         cpu_lower_bound = 0.25
@@ -201,69 +197,78 @@ class Analyzer:
 
     # prediction
     def predict_for_option(self, cpu_quota, memory_quota, pod_num):
-        # get the success_rate_expected, latency_expected with our empirical rules
-        success_rate_expected = self.get_success_rate_expected(cpu_quota, memory_quota)
-        latency_expected = self.get_latency_expected(cpu_quota, memory_quota)
+        return
 
-        # call utility function
-        utility_score = self.get_utility(cpu_quota, memory_quota,
-                                         success_rate_expected, latency_expected, pod_num),
-        return utility_score, success_rate_expected, latency_expected
+    @staticmethod
+    def get_possible_values(start, step, num_steps, lower_limit):
+        if num_steps == 0:
+            return [start]
+        if num_steps > 0:
+            return [start + step * i for i in range(1, num_steps + 1, 1) if start + step * i >= lower_limit]
+        else:
+            return [start + step * i for i in range(-1, num_steps - 1, -1) if start + step * i >= lower_limit]
 
-    def analyze_options(self,
-                        current_cpu_cores_quota,
-                        step_cpu_cores,
-                        current_memory_bytes_quota,
-                        step_memory_bytes,
-                        current_pod_nums,
-                        step_pod_nums,
-                        current_jvm_heap_bytes_quota,
-                        step_jvm_heap_bytes,
-                        current_success_rate,
-                        current_latency,
+    @staticmethod
+    def analyze_options(service_name,
+                        current_cpu_cores_quota=0.5,
+                        step_cpu_cores=0.25,
+                        num_steps_cpu=0,
+                        min_cpu_cores_quota=0.25,
+                        current_memory_quota_mb=412,
+                        step_memory_mb=256,
+                        num_steps_memory=0,
+                        min_memory_quota_mb=512,
+                        current_replica_nums=1,
+                        step_replica=1,
+                        nums_steps_replica=0,
+                        min_replica_num=1,
+                        current_jvm_heap_max_mb=512,
+                        step_jvm_heap_max_mb=64,
+                        num_steps_jvm_heap_max=0,
+                        min_jvm_heap_max_mb=512,
+                        current_success_rate=100,
+                        current_latency_ms=100,
                         ):
-        '''
-        :param current_cpu_cores_quota:
-        :param step_cpu_cores:
-        :param current_memory_bytes_quota:
-        :param step_memory_bytes:
-        :param current_pod_nums:
-        :param step_pod_nums:
-        :param current_jvm_heap_bytes_quota:
-        :param step_jvm_heap_bytes:
-        :param current_success_rate:
-        :param current_latency:
-        :return:
-        '''
-        # if step_jvm_heap_bytes == 1:
-        #     current_jvm_heap_bytes_quota *= 2
-        # elif step_jvm_heap_bytes == -1 and current_jvm_heap_bytes_quota > self.jvm_heap_quota_lower_bound:
-        #     current_jvm_heap_bytes_quota /= 2
-        # # calculate utilities score for all set of options
-        # options_and_utilities = []
-        # for i in range(abs(step_cpu_cores) + 1):
-        #     for j in range(abs(step_memory_bytes) + 1):
-        #         inloop_cpu_step = i * (step_cpu_cores / abs(step_cpu_cores))
-        #         inloop_mem_step = j * (step_memory_bytes / abs(step_memory_bytes))
-        #         cpu_quota = current_cpu_cores_quota + 0.25 * inloop_cpu_step
-        #         memory_quota = current_memory_bytes_quota * 2 ** inloop_mem_step
-        #         if memory_quota < self.memory_quota_lower_bound: continue
-        #         if current_jvm_heap_bytes_quota > memory_quota:
-        #             memory_quota = current_jvm_heap_bytes_quota
-        #         utility_score, success_rate_expected, latency_expected = self.predict_for_option(cpu_quota,
-        #                                                                                          memory_quota,
-        #                                                                                          current_pod_nums),
-        #         options_and_utilities += [
-        #             cpu_quota,
-        #             inloop_cpu_step,
-        #             memory_quota,
-        #             inloop_mem_step,
-        #             current_pod_nums,
-        #             current_jvm_heap_bytes_quota,
-        #             step_jvm_heap_bytes,
-        #             utility_score,
-        #             success_rate_expected,
-        #             latency_expected
-        #         ]
-        # return options_and_utilities
-        return 1
+        possible_cpu_cores_quota = Analyzer.get_possible_values(current_cpu_cores_quota, step_cpu_cores, num_steps_cpu,
+                                                                min_cpu_cores_quota)
+        possible_memory_quota_mb = Analyzer.get_possible_values(current_memory_quota_mb, step_memory_mb,
+                                                                num_steps_memory, min_memory_quota_mb)
+        possible_replica_num = Analyzer.get_possible_values(current_replica_nums, step_replica, nums_steps_replica,
+                                                            min_replica_num)
+        possible_jvm_heap_max_mb = Analyzer.get_possible_values(current_jvm_heap_max_mb, step_jvm_heap_max_mb,
+                                                                num_steps_jvm_heap_max, min_jvm_heap_max_mb)
+        rows = []
+        column_names = [
+            'service_name',
+            'cpu_cores_quota',
+            'memory_quota_mb',
+            'replica_num',
+            'jvm_heap_max_mb',
+            'expected_monthly_cost',
+            'expected_success_rate',
+            'expected_latency',
+            'expected_utility'
+        ]
+        for cpu_cores_quota in possible_cpu_cores_quota:
+            for memory_quota_mb in possible_memory_quota_mb:
+                for replica_num in possible_replica_num:
+                    for jvm_heap_max_mb in possible_jvm_heap_max_mb:
+                        if cpu_cores_quota == current_cpu_cores_quota and memory_quota_mb == current_cpu_cores_quota and replica_num == current_replica_nums and jvm_heap_max_mb == current_jvm_heap_max_mb:
+                            continue
+                        if jvm_heap_max_mb > current_jvm_heap_max_mb and jvm_heap_max_mb > memory_quota_mb:
+                            while jvm_heap_max_mb > memory_quota_mb:
+                                memory_quota_mb += step_memory_mb
+                        elif jvm_heap_max_mb > memory_quota_mb:
+                            jvm_heap_max_mb = memory_quota_mb
+                        expected_monthly_cost = Analyzer.get_monthly_cost(replica_num, cpu_cores_quota, memory_quota_mb)
+                        # expected_success_rate = Analyzer.get_success_rate_expected(cpu_cores_quota)
+                        # expected_latency = Analyzer.get_latency_expected()
+                        # expected_utility = Analyzer.get_utility(expected_monthly_cost, expected_success_rate,
+                        #                                         expected_latency)
+
+                        row = [service_name, cpu_cores_quota, memory_quota_mb, replica_num, jvm_heap_max_mb,
+                               expected_monthly_cost,
+                               0, 0, 0]
+                        rows.append(row)
+
+        return pd.DataFrame(rows, columns=column_names)
