@@ -46,7 +46,7 @@ class Monitor:
              },
             {"id": "sysdig_container_net_request_time",
              "aggregations": {
-                 "time": "max",
+                 "time": "avg",
              }
              },
             {"id": "sysdig_container_net_http_error_count",
@@ -54,7 +54,7 @@ class Monitor:
                  "time": "sum",
              }
              },
-            {"id": "sysdig_container_net_request_count",
+            {"id": "sysdig_container_net_http_request_count",
              "aggregations": {
                  "time": "sum",
              }
@@ -121,6 +121,7 @@ class Monitor:
         :return:
         """
         df = Monitor._convert_metrics_json_to_df(response, self.metrics_to_pull)
+        logging.debug("metrics: \n" + df.to_string())
         return self.get_knowledge(df)
 
     def get_knowledge(self, df):
@@ -171,7 +172,7 @@ class Monitor:
             start_time_stamp = service_df['time_stamp'].min()
             end_time_stamp = service_df['time_stamp'].max()
             time_average_service_df = service_df.groupby('pod_name').mean()
-            pods_num = service_df['sysdig_container_count'].values[0]
+            pods_num = service_df['sysdig_container_count'].sum()
             cpu_quota_cores = service_df['sysdig_container_cpu_cores_quota_limit'].values[0]
             min_cpu_quota_percentage_across_pods = (
                 time_average_service_df['sysdig_container_cpu_quota_used_percent'].min())
@@ -195,7 +196,7 @@ class Monitor:
                 time_average_service_df['jmx_jvm_heap_used_percent'].min())
             min_jvm_heap_used_bytes = (
                 time_average_service_df['jmx_jvm_heap_used'].min())
-            total_request_count = service_df['sysdig_container_net_request_count'].sum()
+            total_request_count = service_df['sysdig_container_net_http_request_count'].sum()
             total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
             if total_request_count == 0:
                 success_rate = 100
