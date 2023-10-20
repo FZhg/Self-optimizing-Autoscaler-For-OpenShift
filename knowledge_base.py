@@ -5,7 +5,6 @@ import pandas as pd
 
 # TODO: make this class thread-safe
 class KnowledgeBase:
-    current_knowledge = None
 
     def __init__(self, knowledge_csv_file_path):
         self.knowledge_csv_file_path = knowledge_csv_file_path
@@ -17,5 +16,5 @@ class KnowledgeBase:
     def write_knowledge(self, knowledge):
         self.current_knowledge = knowledge
         self.knowledge_df = pd.concat([knowledge, self.knowledge_df], ignore_index=True)
-        self.current_knowledge.to_csv(self.knowledge_csv_file_path, index=False)
+        self.knowledge_df.to_csv(self.knowledge_csv_file_path, index=False)
         logging.debug("Current Knowledge:\n " + self.current_knowledge.to_string())
