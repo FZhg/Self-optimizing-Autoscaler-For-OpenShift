@@ -198,7 +198,7 @@ class Monitor:
             total_request_count = service_df['sysdig_container_net_request_count'].sum()
             total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
             if total_request_count == 0:
-                success_rate = 0
+                success_rate = 100
             else:
                 success_rate = (1 - (total_error_count / total_request_count)) * 100
             latency_ns = service_df['sysdig_container_net_request_time'].max()

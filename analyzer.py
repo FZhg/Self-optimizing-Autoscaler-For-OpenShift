@@ -76,7 +76,9 @@ class Analyzer:
                 current_memory_quota_mb=memory_quota_mb,
                 current_jvm_heap_max_mb=jvm_heap_max_mb,
                 current_replica_nums=pods_number,
-                nums_steps_replica=num_steps_replica
+                nums_steps_replica=num_steps_replica,
+                current_success_rate=success_rate,
+                current_latency_ms=latency_ms
             )
             options = pd.concat([options_cpu_memory_jvm, options_replica_num], ignore_index=True)
             options_for_all_services.append(options)
@@ -115,7 +117,7 @@ class Analyzer:
         if success_rate > 99.9:
             return 1
         elif success_rate > 99.5:
-            return 0.8
+            return 0.1
         else:
             return 0
 
@@ -127,7 +129,7 @@ class Analyzer:
         elif latency < 200:
             return 0.8
         elif latency < 300:
-            return 0.4
+            return 0.1
         else:
             return 0
 
@@ -272,6 +274,6 @@ class Analyzer:
                                0, 0, 0]
                         rows.append(row)
         df = pd.DataFrame(rows, columns=column_names)
-        output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate}_latency_{current_latency_ms}.csv"
-        df.to_csv(output_filename, index=False)
+        output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
+        df.to_csv('options/' + output_filename, index=False)
         return df
