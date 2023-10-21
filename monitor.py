@@ -175,11 +175,11 @@ class Monitor:
         for service_name in self.services_monitored:
             service_df = df[df['pod_name'].str.startswith(service_name)]
             if not service_df['sysdig_container_count'].any():
-                continue # pass the empty service
+                continue  # pass the empty service
             start_time_stamp = service_df['time_stamp'].min()
             end_time_stamp = service_df['time_stamp'].max()
             time_average_service_df = service_df.groupby('pod_name').mean()
-            pods_num = service_df['sysdig_container_count'].sum()
+            pods_num = service_df.groupby('time_stamp').sum()['sysdig_container_count'].values[0]
             cpu_quota_cores = service_df['sysdig_container_cpu_cores_quota_limit'].values[0]
             min_cpu_quota_percentage_across_pods = (
                 time_average_service_df['sysdig_container_cpu_quota_used_percent'].min())
@@ -241,6 +241,7 @@ class Monitor:
     @staticmethod
     def _convert_ns_to_ms(ns_num):
         return ns_num / 1000000
+
     @staticmethod
     def _convert_bytes_to_mb(bytes_num):
         return bytes_num // (1024 * 1024)
@@ -257,4 +258,3 @@ class Monitor:
         logging.debug("Metrics Pulled: " + str(pod_metrics_response))
         knowledge = self._preprocess(pod_metrics_response)
         self._write_to_knowledge_base(knowledge)
-
