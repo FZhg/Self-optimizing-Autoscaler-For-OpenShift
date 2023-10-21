@@ -264,10 +264,10 @@ class Analyzer:
                         elif jvm_heap_max_mb > memory_quota_mb:
                             jvm_heap_max_mb = memory_quota_mb
                         expected_monthly_cost = Analyzer.get_monthly_cost(replica_num, cpu_cores_quota, memory_quota_mb)
-                        # expected_success_rate = Analyzer.get_success_rate_expected(cpu_cores_quota)
-                        # expected_latency = Analyzer.get_latency_expected()
-                        # expected_utility = Analyzer.get_utility(expected_monthly_cost, expected_success_rate,
-                        #                                         expected_latency)
+                        expected_success_rate = Analyzer.get_success_rate_expected(cpu_cores_quota, memory_quota_mb, replica_num)
+                        expected_latency = Analyzer.get_latency_expected(cpu_cores_quota, memory_quota_mb)
+                        expected_utility = Analyzer.get_utility(expected_monthly_cost, expected_success_rate,
+                                                                expected_latency)
 
                         row = [service_name, cpu_cores_quota, memory_quota_mb, replica_num, jvm_heap_max_mb,
                                expected_monthly_cost,
