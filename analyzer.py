@@ -1,8 +1,6 @@
 import logging
 import time
-
 import pandas as pd
-import numpy as np
 
 
 class Analyzer:
@@ -243,35 +241,29 @@ class Analyzer:
         rows = []
         column_names = [
             'service_name',
-            'cpu_cores_quota',
-            'memory_quota_mb',
-            'replica_num',
-            'jvm_heap_max_mb',
-            'expected_monthly_cost',
-            'expected_success_rate',
-            'expected_latency',
-            'expected_utility'
+            'current_cpu_cores_quota',
+            'current_memory_quota_mb',
+            'current_replica_num',
+            'current_jvm_heap_max_mb',
+            'future_cpu_cores_quota',
+            'future_memory_quota_mb',
+            'future_replica_num',
+            'future_jvm_heap_max_mb',
+            'expected_cost'
         ]
-        for cpu_cores_quota in possible_cpu_cores_quota:
-            for memory_quota_mb in possible_memory_quota_mb:
-                for replica_num in possible_replica_num:
-                    for jvm_heap_max_mb in possible_jvm_heap_max_mb:
-                        if cpu_cores_quota == current_cpu_cores_quota and memory_quota_mb == current_cpu_cores_quota and replica_num == current_replica_nums and jvm_heap_max_mb == current_jvm_heap_max_mb:
+        for future_cpu_cores_quota in possible_cpu_cores_quota:
+            for future_memory_quota_mb in possible_memory_quota_mb:
+                for future_replica_num in possible_replica_num:
+                    for future_jvm_heap_max_mb in possible_jvm_heap_max_mb:
+                        if future_cpu_cores_quota == current_cpu_cores_quota and future_memory_quota_mb == current_memory_quota_mb and future_replica_num == current_replica_nums and future_jvm_heap_max_mb == current_jvm_heap_max_mb:
                             continue
-                        if jvm_heap_max_mb > current_jvm_heap_max_mb and jvm_heap_max_mb > memory_quota_mb:
-                            while jvm_heap_max_mb > memory_quota_mb:
-                                memory_quota_mb += step_memory_mb
-                        elif jvm_heap_max_mb > memory_quota_mb:
-                            jvm_heap_max_mb = memory_quota_mb
-                        expected_monthly_cost = Analyzer.get_monthly_cost(replica_num, cpu_cores_quota, memory_quota_mb)
-                        expected_success_rate = Analyzer.get_success_rate_expected(cpu_cores_quota, memory_quota_mb, replica_num)
-                        expected_latency = Analyzer.get_latency_expected(cpu_cores_quota, memory_quota_mb)
-                        expected_utility = Analyzer.get_utility(expected_monthly_cost, expected_success_rate,
-                                                                expected_latency)
-
-                        row = [service_name, cpu_cores_quota, memory_quota_mb, replica_num, jvm_heap_max_mb,
-                               expected_monthly_cost,
-                               0, 0, 0]
+                        if future_jvm_heap_max_mb > current_jvm_heap_max_mb and future_jvm_heap_max_mb > future_memory_quota_mb:
+                            while future_jvm_heap_max_mb > future_memory_quota_mb:
+                                future_memory_quota_mb += step_memory_mb
+                        elif future_jvm_heap_max_mb > future_memory_quota_mb:
+                            future_jvm_heap_max_mb = future_memory_quota_mb
+                        expected_cost = Analyzer.get_monthly_cost(replica_num=future_replica_num, cpu_cores_used=future_cpu_cores_quota, memory_mb_used=future_memory_quota_mb)
+                        row = [service_name, current_cpu_cores_quota, current_memory_quota_mb, current_replica_nums, current_jvm_heap_max_mb, future_cpu_cores_quota, future_memory_quota_mb, future_replica_num, future_jvm_heap_max_mb, expected_cost]
                         rows.append(row)
         df = pd.DataFrame(rows, columns=column_names)
         output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
