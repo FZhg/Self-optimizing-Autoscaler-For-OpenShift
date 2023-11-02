@@ -1,0 +1,2 @@
+service_name,current_cpu_cores_quota,current_memory_quota_mb,current_replica_num,current_jvm_heap_max_mb,future_cpu_cores_quota,future_memory_quota_mb,future_replica_num,future_jvm_heap_max_mb,expected_monthly_cost
+acmeair-flightservice,0.5,512,1,512,0.25,512,1,512,5.5
