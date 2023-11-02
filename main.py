@@ -27,7 +27,7 @@ def main():
     metrics_guid = config['DEFAULT']['metrics_guid']
     metrics_filter = config['DEFAULT']['metrics_filter']
     metric_sampling = config['DEFAULT']['metric_sampling']
-    monthly_cost_limit_per_service = config['DEFAULT']['monthly_limit_per_pod']
+    monthly_cost_limit_per_service = int(config['DEFAULT']['monthly_cost_limit_per_pod'])
 
     # initialize sys-dig client
     ibm_headers = IbmAuthHelper.get_headers(metrics_url, metrics_api_key, metrics_guid)
