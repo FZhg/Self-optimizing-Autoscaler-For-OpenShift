@@ -49,17 +49,17 @@ class Monitor:
                  "time": "avg",
              }
              },
-            {"id": "sysdig_container_net_http_error_count",
+            {"id": "sysdig_container_net_error_count",
              "aggregations": {
                  "time": "sum",
              }
              },
-            {"id": "sysdig_container_net_connection_in_count",
+            {"id": "sysdig_container_net_http_statuscode_request_count",
              "aggregations": {
-                 "time": "avg",
+                 "time": "sum",
              }
              },
-            {"id": "sysdig_container_net_http_request_count",
+            {"id": "sysdig_container_net_request_in_count",
              "aggregations": {
                  "time": "sum",
              }
@@ -203,14 +203,14 @@ class Monitor:
                 time_average_service_df['jmx_jvm_heap_used_percent'].min())
             min_jvm_heap_used_bytes = (
                 time_average_service_df['jmx_jvm_heap_used'].min())
-            total_request_count = service_df['sysdig_container_net_http_request_count'].sum()
-            total_error_count = service_df['sysdig_container_net_http_error_count'].sum()
-            queries_per_second = time_average_service_df['sysdig_container_net_connection_in_count'].max()
+            total_request_count = service_df['sysdig_container_net_request_in_count'].sum()
+            total_error_count = service_df['sysdig_container_net_error_count'].sum()
+            queries_per_second = time_average_service_df['sysdig_container_net_request_in_count'].max()
             if total_request_count == 0:
                 success_rate = 100
             else:
                 success_rate = (1 - (total_error_count / total_request_count)) * 100
-            latency_ns = service_df['sysdig_container_net_request_time'].max()
+            latency_ns = service_df['sysdig_container_net_request_time'].mean()
             latency_ms = Monitor._convert_ns_to_ms(latency_ns)
             row = [
                 start_time_stamp,
