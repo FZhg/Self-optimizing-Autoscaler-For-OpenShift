@@ -271,6 +271,6 @@ class Analyzer:
                                future_replica_num, future_jvm_heap_max_mb, expected_cost]
                         rows.append(row)
         df = pd.DataFrame(rows, columns=column_names)
-        output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
-        df.to_csv('options/' + output_filename, index=False)
+        # output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
+        # df.to_csv('options/' + output_filename, index=False)
         return df

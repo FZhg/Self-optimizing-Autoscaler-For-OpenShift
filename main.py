@@ -13,7 +13,7 @@ def job(monitor, analyzer, planner, executor):
     monitor.update_knowledge()
     options = analyzer.analyze()
     optimal_options = planner.plan(options)
-    executor.execute(optimal_options)
+    # executor.execute(optimal_options)
 
 
 def main():
