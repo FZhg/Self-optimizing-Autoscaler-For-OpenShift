@@ -1,5 +1,7 @@
 import json
 import logging
+
+import numpy as np
 import pandas as pd
 
 
@@ -203,13 +205,10 @@ class Monitor:
                 time_average_service_df['jmx_jvm_heap_used_percent'].min())
             min_jvm_heap_used_bytes = (
                 time_average_service_df['jmx_jvm_heap_used'].min())
-            total_request_count = service_df['sysdig_container_net_request_in_count'].sum()
-            total_error_count = service_df['sysdig_container_net_error_count'].sum()
+            service_df["error_rate"] = service_df['sysdig_container_net_error_count'].divide(service_df['sysdig_container_net_request_in_count']).replace(np.NAN, 0)
+            max_error_rate = service_df["error_rate"].max()
             queries_per_second = time_average_service_df['sysdig_container_net_request_in_count'].max()
-            if total_request_count == 0:
-                success_rate = 100
-            else:
-                success_rate = (1 - (total_error_count / total_request_count)) * 100
+            success_rate = (1 - max_error_rate) * 100
             latency_ns = service_df['sysdig_container_net_request_time'].mean()
             latency_ms = Monitor._convert_ns_to_ms(latency_ns)
             row = [
