@@ -26,7 +26,6 @@ class Monitor:
             {"id": "sysdig_container_cpu_quota_used_percent",
              "aggregations": {
                  "time": "avg",
-                 "group": "sum"
              }
              },
             {"id": "sysdig_container_memory_limit_bytes",
@@ -210,7 +209,7 @@ class Monitor:
                 success_rate = 100
             else:
                 success_rate = (1 - (total_error_count / total_request_count)) * 100
-            latency_ns = service_df['sysdig_container_net_request_time'].max()
+            latency_ns = service_df['sysdig_container_net_request_time'].median()
             latency_ms = Monitor._convert_ns_to_ms(latency_ns)
             row = [
                 start_time_stamp,
