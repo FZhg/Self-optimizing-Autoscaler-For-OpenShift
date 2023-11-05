@@ -1,6 +1,7 @@
 import configparser
 import logging
 import schedule
+import sys
 from sdcclient import IbmAuthHelper, SdMonitorClient
 from monitor import Monitor
 from knowledge_base import KnowledgeBase
@@ -13,7 +14,8 @@ def job(monitor, analyzer, planner, executor):
     monitor.update_knowledge()
     options = analyzer.analyze()
     optimal_options = planner.plan(options)
-    executor.execute(optimal_options)
+    if len(sys.argv) == 1 or (len(sys.argv) > 1 and not sys.argv[1] == 'baseline'):
+        executor.execute(optimal_options)
 
 
 def main():
