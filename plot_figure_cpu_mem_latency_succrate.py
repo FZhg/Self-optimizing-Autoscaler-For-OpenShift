@@ -4,14 +4,18 @@ import matplotlib.pyplot as plt
 
 csv_adaptive = '../load-test-ece750/data/jsons/entire-sys/metrics_entire_sys_1699137000_1699137600_thread_1200_adaptive.csv'
 csv_baseline = '../load-test-ece750/data/jsons/entire-sys/metrics_entire_sys_1699135980_1699136580_thread_1200_baseline.csv'
+# Load the data from knowledge.csv and knowledge_baseline.csv
+knowledge_df = pd.read_csv(csv_adaptive)
+knowledge_df['timestamp'] = knowledge_df['timestamp']-knowledge_df['timestamp'].min()
+knowledge_baseline_df = pd.read_csv(csv_baseline)
+knowledge_baseline_df['timestamp'] = knowledge_baseline_df['timestamp']-knowledge_baseline_df['timestamp'].min()
+
+# for success rate
+knowledge_df['success_rate'] = (1 - (knowledge_df['sysdig_container_net_error_count']/knowledge_df['sysdig_container_net_request_count']))*100
+knowledge_baseline_df['success_rate'] = (1 - (knowledge_baseline_df['sysdig_container_net_error_count']/knowledge_baseline_df['sysdig_container_net_request_count']))*100
 
 def plot_figure(metric_name, outname, second_metric_name="sysdig_container_count"):
-  # Load the data from knowledge.csv and knowledge_baseline.csv
-  knowledge_df = pd.read_csv(csv_adaptive)
-  knowledge_df['timestamp'] = knowledge_df['timestamp']-knowledge_df['timestamp'].min()
 
-  knowledge_baseline_df = pd.read_csv(csv_baseline)
-  knowledge_baseline_df['timestamp'] = knowledge_baseline_df['timestamp']-knowledge_baseline_df['timestamp'].min()
 
   # Define the list of services
   services = ['acmeair-authservice', 'acmeair-bookingservice', 'acmeair-customerservice', 'acmeair-flightservice']
@@ -43,16 +47,21 @@ def plot_figure(metric_name, outname, second_metric_name="sysdig_container_count
       sns.lineplot(data=knowledge_baseline_data, x='timestamp', y=metric_name, label='baseline', color='b', ax=axes[0,i])
 
       # Plot the 'pods_number' for knowledge.csv
-      sns.lineplot(data=knowledge_data, x='timestamp', y=second_metric_name, label='adapted pods number', color='g', ax=axes[1,i])
+      sns.lineplot(data=knowledge_data, x='timestamp', y=second_metric_name, label='adaptive', color='g', ax=axes[1,i])
 
       # Plot the 'pods_number' for knowledge_baseline.csv
-      sns.lineplot(data=knowledge_baseline_data, x='timestamp', y=second_metric_name, label='baseline pods_number', color='black', ax=axes[1,i])
+      sns.lineplot(data=knowledge_baseline_data, x='timestamp', y=second_metric_name, label='baseline', color='black', ax=axes[1,i])
 
       # Set titles, labels, and legends for each subfigure
-      #axes[i].set_title(f"Service: {service}")
-      #axes[i].set_xlabel("Timestamp")
-      #axes[i].set_ylabel("min cpu quota percentage")
-      #axes[i].legend(title="Type")
+      axes[0,i].set_title(f"Service: {service}")
+      axes[0,i].set_xlabel("Timestamp")
+      axes[0,i].set_ylabel(metric_name.replace("sysdig_container_","").replace("_"," "))
+      #if "cpu" or "mem" in metric_name:
+      #  axes[0,i].set_ylim(0,100)
+
+      axes[1,i].set_xlabel("Timestamp")
+      axes[1,i].set_ylabel("Pods Number")
+      axes[1,i].set_ylim(0, 6)
 
   # Set a common x-axis label
   #axes[-1].set_xlabel("Timestamp")
@@ -71,6 +80,7 @@ def main():
   plot_figure("sysdig_container_cpu_quota_used_percent", "cpu_saturation")
   plot_figure("sysdig_container_memory_used_percent", "mem_saturation")
   plot_figure("sysdig_container_net_request_time", "latency")
+  plot_figure("success_rate", "success_rate")
 
 if __name__=="__main__":
   main()
