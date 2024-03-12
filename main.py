@@ -6,12 +6,14 @@ from monitor import Monitor
 from knowledge_base import KnowledgeBase
 from analyzer import Analyzer
 from planner import Planner
+from executor import Executor
 
 
-def job(monitor, analyzer, planner):
+def job(monitor, analyzer, planner, executor):
     monitor.update_knowledge()
     options = analyzer.analyze()
-    planner.plan(options)
+    optimal_options = planner.plan(options)
+    executor.execute(optimal_options)
 
 
 def main():
@@ -25,6 +27,7 @@ def main():
     metrics_guid = config['DEFAULT']['metrics_guid']
     metrics_filter = config['DEFAULT']['metrics_filter']
     metric_sampling = config['DEFAULT']['metric_sampling']
+    monthly_cost_limit_per_service = int(config['DEFAULT']['monthly_cost_limit_per_pod'])
 
     # initialize sys-dig client
     ibm_headers = IbmAuthHelper.get_headers(metrics_url, metrics_api_key, metrics_guid)
@@ -39,15 +42,17 @@ def main():
     knowledge_base = KnowledgeBase('knowledge.csv')
     monitor = Monitor(knowledge_base, sd_client, metrics_filter, look_back_duration, metric_sampling,
                       services_names)
-    planner = Planner()
+    planner = Planner(monthly_cost_limit_per_service)
     analyzer = Analyzer(knowledge_base, services_names)
+    executor: Executor = Executor()
 
     # The loop will execute every <loop_duration> seconds
     schedule.every(loop_duration).seconds.do(
         job,
         monitor=monitor,
         analyzer=analyzer,
-        planner=planner
+        planner=planner,
+        executor=executor
     )
 
     logging.info("The MAPE-K loop Started.")
