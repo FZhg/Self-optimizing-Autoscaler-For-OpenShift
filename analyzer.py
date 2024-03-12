@@ -1,8 +1,13 @@
 import logging
 import time
+<<<<<<< HEAD
 
 import pandas as pd
 import numpy as np
+=======
+import pandas as pd
+from executor import Executor
+>>>>>>> 19bad95d8adf536fbe00514c02a4ed50d2c64888
 
 
 class Analyzer:
@@ -17,7 +22,11 @@ class Analyzer:
             service_knowledge = knowledge[knowledge['service_name'] == service_name]
             if not Analyzer.is_adaption_required(service_knowledge):
                 continue
+<<<<<<< HEAD
             pods_number = service_knowledge['pods_number'].values[0]
+=======
+            pods_number = Executor.get_replicas(service_name)
+>>>>>>> 19bad95d8adf536fbe00514c02a4ed50d2c64888
             min_cpu_quota_percentage_across_pods = service_knowledge['min_cpu_quota_percentage_across_pods'].values[0]
             max_cpu_quota_percentage_across_pods = service_knowledge['max_cpu_quota_percentage_across_pods'].values[0]
             min_memory_quota_percentage_across_pods = \
@@ -38,6 +47,7 @@ class Analyzer:
             num_steps_jvm_heap_max = 0
 
             if min_jvm_heap_used_percentage_across_pods >= 80:
+<<<<<<< HEAD
                 num_steps_jvm_heap_max = 2
 
             if max_cpu_quota_percentage_across_pods <= 40:
@@ -51,6 +61,21 @@ class Analyzer:
                 num_steps_memory = 2
 
             if min_cpu_quota_percentage_across_pods >= 90 and min_memory_quota_percentage_across_pods >= 80:
+=======
+                num_steps_replica = 1
+
+            if max_cpu_quota_percentage_across_pods <= 40:
+                num_steps_replica = -1
+            elif min_cpu_quota_percentage_across_pods >= 80:
+                num_steps_replica = 1
+
+            if max_memory_quota_percentage_across_pods <= 40:
+                num_steps_replica = -1
+            elif min_memory_quota_percentage_across_pods >= 80:
+                num_steps_replica = 1
+
+            if min_cpu_quota_percentage_across_pods >= 80 and min_memory_quota_percentage_across_pods >= 80:
+>>>>>>> 19bad95d8adf536fbe00514c02a4ed50d2c64888
                 num_steps_replica = 1
             elif max_cpu_quota_percentage_across_pods <= 40 and max_memory_quota_percentage_across_pods < 40:
                 num_steps_replica = -1
@@ -243,6 +268,7 @@ class Analyzer:
         rows = []
         column_names = [
             'service_name',
+<<<<<<< HEAD
             'cpu_cores_quota',
             'memory_quota_mb',
             'replica_num',
@@ -276,4 +302,37 @@ class Analyzer:
         df = pd.DataFrame(rows, columns=column_names)
         output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
         df.to_csv('options/' + output_filename, index=False)
+=======
+            'current_cpu_cores_quota',
+            'current_memory_quota_mb',
+            'current_replica_num',
+            'current_jvm_heap_max_mb',
+            'future_cpu_cores_quota',
+            'future_memory_quota_mb',
+            'future_replica_num',
+            'future_jvm_heap_max_mb',
+            'expected_monthly_cost'
+        ]
+        for future_cpu_cores_quota in possible_cpu_cores_quota:
+            for future_memory_quota_mb in possible_memory_quota_mb:
+                for future_replica_num in possible_replica_num:
+                    for future_jvm_heap_max_mb in possible_jvm_heap_max_mb:
+                        if future_cpu_cores_quota == current_cpu_cores_quota and future_memory_quota_mb == current_memory_quota_mb and future_replica_num == current_replica_nums and future_jvm_heap_max_mb == current_jvm_heap_max_mb:
+                            continue
+                        if future_jvm_heap_max_mb > current_jvm_heap_max_mb and future_jvm_heap_max_mb > future_memory_quota_mb:
+                            while future_jvm_heap_max_mb > future_memory_quota_mb:
+                                future_memory_quota_mb += step_memory_mb
+                        elif future_jvm_heap_max_mb > future_memory_quota_mb:
+                            future_jvm_heap_max_mb = future_memory_quota_mb
+                        expected_cost = Analyzer.get_monthly_cost(replica_num=future_replica_num,
+                                                                  cpu_cores_used=future_cpu_cores_quota,
+                                                                  memory_mb_used=future_memory_quota_mb)
+                        row = [service_name, current_cpu_cores_quota, current_memory_quota_mb, current_replica_nums,
+                               current_jvm_heap_max_mb, future_cpu_cores_quota, future_memory_quota_mb,
+                               future_replica_num, future_jvm_heap_max_mb, expected_cost]
+                        rows.append(row)
+        df = pd.DataFrame(rows, columns=column_names)
+        # output_filename = f"{time.time()}-cpu_{current_cpu_cores_quota}_memo_{current_memory_quota_mb}_replica_{current_replica_nums}_jvm_{current_jvm_heap_max_mb}_success_rate_{current_success_rate:.2f}_latency_{current_latency_ms:.2f}.csv"
+        # df.to_csv('options/' + output_filename, index=False)
+>>>>>>> 19bad95d8adf536fbe00514c02a4ed50d2c64888
         return df
